@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Calories"/>
+  <meta name="theme-color" content="#0f0f0f"/>
+  <link rel="manifest" href="/Calorie-tracker/manifest.json"/>
+  <link rel="apple-touch-icon" href="/Calorie-tracker/icon-192.png"/>
+  <title>Fat Loss Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg0: #0f0f0f; --bg1: #161616; --bg2: #1e1e1e; --bg3: #252525;
+      --border: #2e2e2e; --muted: #555; --body: #a0a0a0; --white: #ededed;
+      --amber: #f0a500; --amber-dim: #7a5200;
+      --teal: #2dd4bf;  --teal-dim: #0d4f47;
+      --coral: #f26565; --coral-dim: #5a1f1f;
+      --sky: #60c8f5;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: var(--bg0); overscroll-behavior: none; }
+    body {
+      font-family: 'Noto Sans Thai', 'Helvetica Neue', sans-serif;
+      color: var(--white);
+      overflow-x: hidden;
+    }
+    input, button { font-family: inherit; }
+    input::placeholder { color: #3a3a3a; }
+    input:focus { outline: none; border-color: var(--amber) !important; }
+    button { cursor: pointer; -webkit-appearance: none; }
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+    /* animations */
+    @keyframes up   { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pop  { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+    @keyframes fade { from { opacity:0; } to { opacity:1; } }
+    .anim-up  { animation: up  0.25s ease both; }
+    .anim-pop { animation: pop 0.2s  ease both; }
+
+    /* layout */
+    #app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+
+    /* header */
+    #header {
+      background: var(--bg1);
+      border-bottom: 1px solid var(--border);
+      padding: calc(var(--safe-top) + 14px) 18px 0;
+      flex-shrink: 0;
+      position: sticky; top: 0; z-index: 20;
+    }
+    .header-row { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
+    .app-label  { font-size:9px; letter-spacing:3.5px; color:var(--muted); text-transform:uppercase; margin-bottom:3px; }
+    .app-title  { font-size:20px; font-weight:700; line-height:1; }
+    .app-title span { color:var(--amber); }
+
+    /* tabs */
+    .tabs { display:flex; }
+    .tab-btn {
+      flex:1; background:none; border:none; border-bottom:2px solid transparent;
+      color:var(--muted); font-size:12px; font-weight:400; padding:10px 0;
+      transition:all 0.2s;
+    }
+    .tab-btn.active { color:var(--white); font-weight:600; border-bottom-color:var(--amber); }
+
+    /* scroll area */
+    #content {
+      flex:1; overflow-y:auto; overflow-x:hidden;
+      padding: 22px 16px calc(var(--safe-bot) + 32px);
+      -webkit-overflow-scrolling: touch;
+    }
+    .page { max-width:480px; margin:0 auto; }
+
+    /* settings drawer */
+    .drawer {
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:14px; padding:16px; margin-bottom:14px;
+      animation: up 0.2s ease;
+    }
+
+    /* section label */
+    .sl {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:10px;
+    }
+    .sl-text {
+      font-size:10px; letter-spacing:2.5px; color:var(--muted); text-transform:uppercase;
+    }
+
+    /* ring wrapper */
+    .ring-wrap { display:flex; justify-content:center; margin-bottom:22px; position:relative; }
+    .ring-center {
+      position:absolute; inset:0;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    }
+    .ring-num  { font-size:38px; font-weight:800; letter-spacing:-1.5px; line-height:1; }
+    .ring-sub  { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
+    .ring-pill {
+      margin-top:8px; padding:4px 14px; border-radius:99px;
+      font-size:12px; font-weight:600;
+      display:inline-block;
+    }
+
+    /* stats row */
+    .stats-row { display:flex; gap:8px; margin-bottom:18px; }
+    .stat-card {
+      flex:1; background:var(--bg2); border:1px solid var(--border);
+      border-radius:13px; padding:12px 8px; text-align:center;
+    }
+    .stat-label { font-size:8px; letter-spacing:2.5px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+    .stat-val   { font-size:18px; font-weight:700; letter-spacing:-0.5px; }
+    .stat-unit  { font-size:10px; color:var(--muted); margin-top:2px; }
+
+    /* progress card */
+    .prog-card {
+      background:var(--bg1); border:1px solid var(--border);
+      border-radius:16px; padding:18px; margin-bottom:20px;
+      position:relative; overflow:hidden;
+    }
+    .prog-card::after {
+      content:''; position:absolute; top:0; right:-20px; width:100px; height:100%;
+      background:linear-gradient(90deg,transparent,rgba(240,165,0,0.05));
+      pointer-events:none;
+    }
+    .prog-bar-bg { height:10px; background:var(--bg3); border-radius:99px; overflow:hidden; margin-bottom:10px; }
+    .prog-bar    { height:100%; border-radius:99px; transition:width 0.8s cubic-bezier(.4,0,.2,1); }
+
+    /* presets */
+    .preset-wrap { display:flex; flex-wrap:wrap; gap:7px; }
+    .preset-btn {
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:22px; padding:7px 13px;
+      font-size:12px; color:var(--body);
+      display:flex; align-items:center; gap:5px;
+      transition:all 0.15s; white-space:nowrap;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .preset-btn:active { background:var(--bg3); border-color:var(--amber); color:var(--white); }
+    .preset-cal { color:var(--amber); font-weight:700; }
+
+    /* form card */
+    .form-card {
+      background:var(--bg1); border:1px solid var(--border);
+      border-radius:16px; padding:16px; margin-bottom:24px;
+    }
+    .input-row { display:flex; gap:8px; margin-bottom:10px; }
+    .inp {
+      background:var(--bg3); border:1px solid var(--border);
+      border-radius:10px; padding:11px 13px;
+      color:var(--white); font-size:14px; width:100%;
+      transition:border-color 0.2s;
+    }
+    .inp-sm { padding:11px 10px; }
+    .btn-amber {
+      width:100%; background:linear-gradient(135deg,var(--amber-dim),#b06800);
+      border:1px solid rgba(240,165,0,0.27); border-radius:11px; padding:12px;
+      color:var(--amber); font-weight:700; font-size:14px; letter-spacing:0.5px;
+      transition:opacity 0.15s;
+    }
+    .btn-amber:active { opacity:0.75; }
+
+    /* log entries */
+    .entry-row {
+      background:var(--bg1); border:1px solid var(--border);
+      border-radius:13px; padding:13px 15px;
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:7px;
+    }
+    .entry-name { font-size:14px; color:var(--white); font-weight:500; }
+    .entry-time { font-size:11px; color:var(--muted); margin-top:3px; }
+    .entry-cal  { font-size:17px; font-weight:700; color:var(--amber); }
+    .btn-del {
+      background:var(--bg3); border:1px solid var(--border);
+      border-radius:8px; color:var(--muted); width:30px; height:30px;
+      font-size:17px; display:flex; align-items:center; justify-content:center;
+      flex-shrink:0; transition:all 0.15s;
+    }
+    .btn-del:active { color:var(--coral); border-color:var(--coral); }
+
+    /* total row */
+    .total-row {
+      margin-top:2px; padding:12px 16px;
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:13px; display:flex; justify-content:space-between; align-items:center;
+    }
+
+    /* my menus page */
+    .menu-item {
+      background:var(--bg1); border:1px solid var(--border);
+      border-radius:13px; padding:14px 15px;
+      display:flex; align-items:center; gap:13px;
+      margin-bottom:8px;
+      transition:border-color 0.15s;
+    }
+    .menu-emoji { font-size:28px; width:40px; text-align:center; flex-shrink:0; }
+    .menu-name  { font-size:14px; font-weight:600; color:var(--white); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .menu-cal   { font-size:12px; color:var(--muted); margin-top:2px; }
+    .menu-cal span { color:var(--amber); font-weight:700; }
+    .menu-actions { display:flex; gap:6px; flex-shrink:0; }
+    .btn-icon {
+      width:36px; height:36px; border-radius:8px; font-size:15px;
+      display:flex; align-items:center; justify-content:center;
+      transition:all 0.15s; flex-shrink:0;
+    }
+    .btn-log  { background:rgba(13,79,71,0.53); border:1px solid rgba(45,212,191,0.27); color:var(--teal); }
+    .btn-log:active  { background:var(--teal-dim); }
+    .btn-edit { background:var(--bg3); border:1px solid var(--border); color:var(--body); font-size:14px; }
+    .btn-edit:active { color:var(--amber); border-color:var(--amber); }
+    .btn-rm   { background:var(--bg3); border:1px solid var(--border); color:var(--muted); font-size:17px; }
+    .btn-rm:active   { color:var(--coral); border-color:var(--coral); }
+
+    /* emoji picker */
+    .emoji-picker {
+      position:absolute; top:calc(100% + 6px); left:0; z-index:200;
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:14px; padding:12px; width:252px;
+      display:flex; flex-wrap:wrap; gap:6px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.6);
+      animation: up 0.15s ease;
+    }
+    .emoji-btn {
+      width:34px; height:34px; background:transparent;
+      border:1px solid var(--border);
+      border-radius:8px; font-size:18px; transition:all 0.1s;
+    }
+    .emoji-btn.sel { background:rgba(122,82,0,0.53); border-color:var(--amber); }
+    .emoji-btn:active { background:var(--bg3); }
+
+    /* history */
+    .hist-card {
+      background:var(--bg1); border:1px solid var(--border);
+      border-radius:14px; padding:14px 16px; margin-bottom:9px;
+    }
+    .hist-card.today { border-color:rgba(240,165,0,0.33); }
+
+    /* activity btns */
+    .act-btn {
+      display:flex; justify-content:space-between; align-items:center;
+      background:transparent; border:1px solid var(--border);
+      border-radius:10px; padding:9px 14px;
+      color:var(--body); font-size:13px; width:100%;
+      margin-bottom:5px; transition:all 0.15s; text-align:left;
+    }
+    .act-btn.active { background:rgba(122,82,0,0.33); border-color:var(--amber); color:var(--amber); }
+    .act-btn:active { opacity:0.8; }
+
+    /* tip box */
+    .tip-box {
+      margin-top:18px; padding:12px 14px;
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:12px; display:flex; gap:10px; align-items:flex-start;
+      font-size:12px; color:var(--body); line-height:1.6;
+    }
+
+    /* empty state */
+    .empty { text-align:center; padding:48px 20px; color:var(--muted); }
+    .empty .icon { font-size:46px; margin-bottom:10px; }
+    .empty .title { font-size:15px; color:var(--body); }
+    .empty .sub   { font-size:12px; margin-top:6px; }
+
+    /* settings mini grid */
+    .mini-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+    .mini-card { background:var(--bg3); border-radius:10px; padding:10px 8px; text-align:center; }
+    .mini-label { font-size:8px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:4px; }
+    .mini-val   { font-size:17px; font-weight:700; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div style="max-width:480px;margin:0 auto">
+      <div class="header-row">
+        <div>
+          <div class="app-label">Fat Loss Tracker</div>
+          <div class="app-title">ลดไขมัน <span>1 กก.</span> 🔥</div>
+        </div>
+        <button id="tdee-btn" onclick="toggleSettings()" style="background:var(--bg3);border:1px solid var(--border);color:var(--body);border-radius:10px;padding:7px 14px;font-size:12px;transition:all 0.2s">
+          ⚙ TDEE
+        </button>
+      </div>
+      <div id="settings-drawer" style="display:none"></div>
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-today"   onclick="switchTab('today')">วันนี้</button>
+        <button class="tab-btn"        id="tab-menus"   onclick="switchTab('menus')">เมนูของฉัน</button>
+        <button class="tab-btn"        id="tab-history" onclick="switchTab('history')">ประวัติ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="content">
+    <div class="page" id="page-today"></div>
+    <div class="page" id="page-menus"   style="display:none"></div>
+    <div class="page" id="page-history" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+/* ── Constants ──────────────────────────────────────────────────────────────*/
+const BMR = Math.round(10*82 + 6.25*174 - 5*17 + 5);
+const KCAL_PER_KG = 7700;
+
+const ACTIVITIES = [
+  {val:1.2,   icon:"🪑", label:"นั่งทำงาน"},
+  {val:1.375, icon:"🚶", label:"ออกกำลังกายเบา"},
+  {val:1.55,  icon:"🏃", label:"ออกกำลังกายปานกลาง"},
+  {val:1.725, icon:"🏋️", label:"ออกกำลังกายหนัก"},
+  {val:1.9,   icon:"⚡",  label:"หนักมากทุกวัน"},
+];
+
+const DEFAULT_PRESETS = [
+  {id:"p1",name:"ข้าวสวย 1 ทัพพี",cal:80, emoji:"🍚"},
+  {id:"p2",name:"ไข่ต้ม 1 ฟอง",   cal:70, emoji:"🥚"},
+  {id:"p3",name:"อกไก่ 100g",     cal:165,emoji:"🍗"},
+  {id:"p4",name:"กล้วย 1 ลูก",    cal:90, emoji:"🍌"},
+  {id:"p5",name:"นมจืด 1 กล่อง",  cal:125,emoji:"🥛"},
+  {id:"p6",name:"ผัดกะเพรา",      cal:350,emoji:"🍛"},
+  {id:"p7",name:"ก๋วยเตี๋ยว",     cal:280,emoji:"🍜"},
+  {id:"p8",name:"น้ำอัดลม",       cal:140,emoji:"🥤"},
+];
+
+const EMOJI_LIST = ["🍚","🍜","🍛","🍗","🥩","🥚","🥛","🧃","🥤","🍌","🍎","🍊","🥗","🍱","🥪","🍔","🍟","🌮","🍕","🍣","🍤","🍩","🍫","🧁","🥐","🍞","🥜","🫘","🥦","🥕","🍳","🫕","🍲","☕","🧋","🫖"];
+
+/* ── State ──────────────────────────────────────────────────────────────────*/
+const todayKey = () => new Date().toISOString().slice(0,10);
+const TODAY = todayKey();
+
+let appData   = (() => { try { return JSON.parse(localStorage.getItem("calt5")||"{}"); } catch { return {}; } })();
+let myMenus   = (() => { try { return JSON.parse(localStorage.getItem("calt5_menus")||"null") || DEFAULT_PRESETS; } catch { return DEFAULT_PRESETS; } })();
+let activity  = 1.55;
+let settingsOpen = false;
+let currentTab   = "today";
+
+// menu edit state
+let editMode     = false;
+let editingId    = null;
+let newEmoji     = "🍽️";
+let emojiPickerOpen = false;
+
+function saveAll() { localStorage.setItem("calt5", JSON.stringify(appData)); }
+function saveMenus() { localStorage.setItem("calt5_menus", JSON.stringify(myMenus)); }
+
+function todayEntries() { return appData[TODAY]?.entries || []; }
+function eaten() { return todayEntries().reduce((s,e)=>s+e.cal,0); }
+function tdee()  { return Math.round(BMR * activity); }
+function goal()  { return Math.round(tdee() * 0.8); }
+
+function cumDeficit() {
+  return Object.values(appData).reduce((sum,day)=>{
+    const d = tdee() - (day.entries||[]).reduce((s,e)=>s+e.cal,0);
+    return sum + (d>0?d:0);
+  },0);
+}
+
+/* ── Ring SVG ───────────────────────────────────────────────────────────────*/
+function ringHTML(pct, size, stroke) {
+  const r = (size-stroke)/2, circ = 2*Math.PI*r;
+  const dash = Math.min(pct/100,1)*circ;
+  const color = pct>100?"var(--coral)":pct>80?"var(--amber)":"var(--teal)";
+  const glow  = pct>100?"rgba(242,101,101,0.1)":pct>80?"rgba(240,165,0,0.1)":"rgba(45,212,191,0.1)";
+  return `
+    <div style="position:relative;width:${size}px;height:${size}px;flex-shrink:0">
+      <div style="position:absolute;inset:${stroke}px;border-radius:50%;box-shadow:0 0 44px 10px ${glow};pointer-events:none"></div>
+      <svg width="${size}" height="${size}" style="transform:rotate(-90deg);display:block">
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--bg3)" stroke-width="${stroke}"/>
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
+          stroke-dasharray="${dash} ${circ}" stroke-linecap="round"
+          style="transition:stroke-dasharray 0.7s cubic-bezier(.4,0,.2,1),stroke 0.4s"/>
+      </svg>
+      <div class="ring-center" id="ring-center"></div>
+    </div>`;
+}
+
+/* ── Render: TODAY ──────────────────────────────────────────────────────────*/
+function renderToday() {
+  const e = eaten(), g = goal(), t = tdee();
+  const left = g - e;
+  const pct = (e/g)*100;
+  const fatPct = (cumDeficit()/KCAL_PER_KG)*100;
+  const fatLeft = Math.max(KCAL_PER_KG - cumDeficit(), 0);
+  const ringColor = pct>100?"var(--coral)":pct>80?"var(--amber)":"var(--teal)";
+
+  const entries = [...todayEntries()].reverse();
+
+  const presetsHTML = myMenus.map(f => `
+    <button class="preset-btn" onclick="quickAdd('${esc(f.name)}',${f.cal})">
+      <span>${f.emoji}</span><span>${esc(f.name)}</span><span class="preset-cal">${f.cal}</span>
+    </button>`).join("");
+
+  const logHTML = entries.length ? entries.map((en,i) => `
+    <div class="entry-row" style="animation:up 0.2s ease ${i*0.04}s both">
+      <div>
+        <div class="entry-name">${esc(en.name)}</div>
+        <div class="entry-time">${en.time}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div><span class="entry-cal">${en.cal}</span> <span style="font-size:11px;color:var(--muted)">kcal</span></div>
+        <button class="btn-del" onclick="removeEntry(${en.id})">×</button>
+      </div>
+    </div>`).join("") + `
+    <div class="total-row">
+      <span style="font-size:13px;color:var(--body)">รวมทั้งหมด</span>
+      <span style="font-size:16px;font-weight:700;color:${pct>100?"var(--coral)":"var(--amber)"}">
+        ${e.toLocaleString()} kcal
+      </span>
+    </div>` : `
+    <div class="empty">
+      <div class="icon">🍽</div>
+      <div class="title">ยังไม่มีรายการ</div>
+      <div class="sub">แตะเมนูด้านบนหรือพิมพ์เองได้เลย</div>
+    </div>`;
+
+  document.getElementById("page-today").innerHTML = `
+  <div class="anim-up">
+    <!-- Ring -->
+    <div class="ring-wrap" id="ring-host">
+      ${ringHTML(pct, 188, 14)}
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">เป้าวันนี้</div>
+        <div class="stat-val" style="color:var(--amber)">${g.toLocaleString()}</div>
+        <div class="stat-unit">kcal</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">กินแล้ว</div>
+        <div class="stat-val" style="color:${pct>100?"var(--coral)":"var(--white)"}">${e.toLocaleString()}</div>
+        <div class="stat-unit">kcal</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">TDEE</div>
+        <div class="stat-val" style="color:var(--sky)">${t.toLocaleString()}</div>
+        <div class="stat-unit">kcal</div>
+      </div>
+    </div>
+
+    <!-- 1 kg progress -->
+    <div class="prog-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--white)">🎯 เป้าหมาย: ลดไขมัน 1 กก.</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">ต้องขาดแคลอรี่สะสม 7,700 kcal</div>
+        </div>
+        <div style="font-size:28px;font-weight:800;color:var(--amber);letter-spacing:-1px">
+          ${fatPct.toFixed(1)}<span style="font-size:14px">%</span>
+        </div>
+      </div>
+      <div class="prog-bar-bg">
+        <div class="prog-bar" style="width:${Math.min(fatPct,100)}%;background:linear-gradient(90deg,var(--amber-dim),var(--amber));box-shadow:0 0 10px rgba(240,165,0,0.33)"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:2px">
+        <span style="font-size:11px;color:var(--muted)">สะสม ${Math.round(cumDeficit()).toLocaleString()} kcal</span>
+        <span style="font-size:11px;color:var(--amber)">เหลือ ${fatLeft.toLocaleString()} kcal</span>
+      </div>
+      ${fatLeft>0 && t-g>0 ? `
+      <div style="margin-top:12px;padding:9px 12px;background:var(--bg3);border-radius:10px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:15px">⏱</span>
+        <span style="font-size:12px;color:var(--body)">ถ้าทำ deficit ทุกวัน อีกประมาณ
+          <span style="color:var(--amber);font-weight:700">${Math.ceil(fatLeft/(t-g))} วัน</span> จะลดได้ 1 กก.
+        </span>
+      </div>` : ""}
+    </div>
+
+    <!-- My menus quick add -->
+    ${myMenus.length ? `
+    <div style="margin-bottom:18px">
+      <div class="sl">
+        <span class="sl-text">เมนูของฉัน</span>
+        <button onclick="switchTab('menus')" style="background:none;border:none;color:var(--amber);font-size:11px;padding:0">จัดการ →</button>
+      </div>
+      <div class="preset-wrap">${presetsHTML}</div>
+    </div>` : ""}
+
+    <!-- Manual add -->
+    <div class="form-card">
+      <div class="sl"><span class="sl-text">บันทึกอาหาร</span></div>
+      <div class="input-row">
+        <input id="inp-name" class="inp" style="flex:2" placeholder="ชื่ออาหาร"
+          onkeydown="if(event.key==='Enter')addManual()"/>
+        <input id="inp-cal" class="inp inp-sm" style="flex:1" type="number" inputmode="numeric" placeholder="kcal"
+          onkeydown="if(event.key==='Enter')addManual()"/>
+      </div>
+      <button class="btn-amber" onclick="addManual()">+ เพิ่มรายการ</button>
+    </div>
+
+    <!-- Log -->
+    <div>
+      <div class="sl" style="margin-bottom:8px"><span class="sl-text">รายการวันนี้</span></div>
+      ${logHTML}
+    </div>
+  </div>`;
+
+  // fill ring center
+  const ringColor2 = pct>100?"var(--coral)":pct>80?"var(--amber)":"var(--teal)";
+  const pillBg  = left>=0?"rgba(13,79,71,0.8)":"rgba(90,31,31,0.8)";
+  const pillBorder = left>=0?"var(--teal)":"var(--coral)";
+  const pillColor  = left>=0?"var(--teal)":"var(--coral)";
+  const pillTxt = left>=0?`เหลือ ${left.toLocaleString()}`:`เกิน ${Math.abs(left).toLocaleString()}`;
+  const rc = document.getElementById("ring-center");
+  if(rc) rc.innerHTML = `
+    <div class="ring-num" style="color:${ringColor2}">${e.toLocaleString()}</div>
+    <div class="ring-sub">kcal วันนี้</div>
+    <div class="ring-pill" style="background:${pillBg};border:1px solid ${pillBorder};color:${pillColor}">
+      ${pillTxt} kcal
+    </div>`;
+}
+
+/* ── Render: MY MENUS ───────────────────────────────────────────────────────*/
+function renderMenus() {
+  const formHTML = editMode ? `
+    <div class="anim-pop">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="position:relative">
+          <button id="emoji-trigger" onclick="toggleEmojiPicker(event)"
+            style="width:48px;height:48px;background:var(--bg3);border:1px solid ${emojiPickerOpen?"var(--amber)":"var(--border)"};border-radius:10px;font-size:22px;display:flex;align-items:center;justify-content:center;transition:border-color 0.2s">
+            ${newEmoji}
+          </button>
+          ${emojiPickerOpen ? `<div class="emoji-picker" id="emoji-picker">
+            ${EMOJI_LIST.map(em=>`<button class="emoji-btn ${em===newEmoji?"sel":""}" onclick="pickEmoji('${em}')">${em}</button>`).join("")}
+          </div>` : ""}
+        </div>
+        <input id="new-name" class="inp" style="flex:1" placeholder="ชื่อเมนู เช่น ข้าวมันไก่"
+          value="${esc(document.getElementById("new-name")?.value || "")}"
+          onkeydown="if(event.key==='Enter')saveMenu()"/>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input id="new-cal" class="inp" style="flex:1" type="number" inputmode="numeric" placeholder="แคลอรี่ (kcal)"
+          value="${esc(document.getElementById("new-cal")?.value || "")}"
+          onkeydown="if(event.key==='Enter')saveMenu()"/>
+        <button onclick="saveMenu()" style="background:linear-gradient(135deg,var(--amber-dim),#b06800);border:1px solid rgba(240,165,0,0.27);border-radius:10px;padding:11px 20px;color:var(--amber);font-weight:700;font-size:14px;white-space:nowrap">
+          ${editingId?"บันทึก":"+ เพิ่ม"}
+        </button>
+      </div>
+    </div>` : "";
+
+  const menuListHTML = myMenus.length ? myMenus.map((m,i)=>`
+    <div class="menu-item" style="animation:up 0.2s ease ${i*0.04}s both">
+      <div class="menu-emoji">${m.emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div class="menu-name">${esc(m.name)}</div>
+        <div class="menu-cal"><span>${m.cal}</span> kcal</div>
+      </div>
+      <div class="menu-actions">
+        <button class="btn-icon btn-log" onclick="quickAddGoToday('${esc(m.name)}',${m.cal})" title="บันทึกวันนี้">＋</button>
+        <button class="btn-icon btn-edit" onclick="startEdit('${m.id}')" title="แก้ไข">✎</button>
+        <button class="btn-icon btn-rm"  onclick="deleteMenu('${m.id}')" title="ลบ">×</button>
+      </div>
+    </div>`).join("") : `
+    <div class="empty">
+      <div class="icon">📋</div>
+      <div class="title">ยังไม่มีเมนู</div>
+      <div class="sub">กด "+ เพิ่มเมนูใหม่" ด้านบนได้เลย</div>
+    </div>`;
+
+  document.getElementById("page-menus").innerHTML = `
+  <div class="anim-up">
+    <div class="form-card" style="border-color:${editMode?"var(--amber)":"var(--border)"};transition:border-color 0.2s">
+      <div class="sl">
+        <span class="sl-text">${editingId?"แก้ไขเมนู":"จัดการเมนูของฉัน"}</span>
+        <button onclick="toggleEditMode()"
+          style="background:${editMode?"rgba(122,82,0,0.33)":"var(--bg3)"};border:1px solid ${editMode?"var(--amber)":"var(--border)"};color:${editMode?"var(--amber)":"var(--body)"};border-radius:8px;padding:4px 11px;font-size:11px;transition:all 0.2s">
+          ${editMode?"ยกเลิก":"+ เพิ่มเมนูใหม่"}
+        </button>
+      </div>
+      ${formHTML}
+    </div>
+    ${menuListHTML}
+    <div class="tip-box">
+      <span style="font-size:16px;flex-shrink:0">💡</span>
+      <span>กด <span style="color:var(--teal);font-weight:600">＋</span> ที่เมนูเพื่อบันทึกทันที หรือกลับไปหน้า <span style="color:var(--amber)">วันนี้</span> แล้วแตะชื่อเมนูในส่วนเมนูของฉัน</span>
+    </div>
+  </div>`;
+
+  // restore input values if editing
+  if(editMode) {
+    const ni = document.getElementById("new-name");
+    const ci = document.getElementById("new-cal");
+    if(ni && ni._val) ni.value = ni._val;
+    if(ci && ci._val) ci.value = ci._val;
+  }
+}
+
+/* ── Render: HISTORY ────────────────────────────────────────────────────────*/
+function renderHistory() {
+  const history = Object.entries(appData)
+    .sort(([a],[b])=>b.localeCompare(a)).slice(0,14);
+  const g = goal(), t = tdee();
+
+  const listHTML = history.length ? history.map(([date,dayData],i)=>{
+    const total = (dayData.entries||[]).reduce((s,e)=>s+e.cal,0);
+    const def   = t - total;
+    const p     = (total/g)*100;
+    const isToday = date===TODAY;
+    const barC = p>100?"var(--coral)":p>85?"var(--amber)":"var(--teal)";
+    const barGlow = p>100?"rgba(242,101,101,0.53)":p>85?"rgba(240,165,0,0.53)":"rgba(45,212,191,0.53)";
+    return `
+    <div class="hist-card ${isToday?"today":""}" style="animation:up 0.2s ease ${i*0.04}s both">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <span style="font-size:13px;font-weight:600;color:${isToday?"var(--amber)":"var(--white)"}">
+            ${isToday?"วันนี้ 📍":new Date(date).toLocaleDateString("th-TH",{weekday:"short",day:"numeric",month:"short"})}
+          </span>
+          <span style="font-size:11px;color:var(--muted);margin-left:8px">${(dayData.entries||[]).length} รายการ</span>
+        </div>
+        <div>
+          <span style="font-size:16px;font-weight:700;color:${p>100?"var(--coral)":"var(--white)"}">${total.toLocaleString()}</span>
+          <span style="font-size:11px;color:var(--muted)"> kcal</span>
+        </div>
+      </div>
+      <div style="height:5px;background:var(--bg3);border-radius:99px;overflow:hidden;margin-bottom:8px">
+        <div style="height:100%;width:${Math.min(p,100)}%;background:${barC};border-radius:99px;box-shadow:0 0 6px ${barGlow}"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:11px;color:var(--muted)">เป้า ${g.toLocaleString()} kcal</span>
+        <span style="font-size:11px;font-weight:600;color:${def>0?"var(--teal)":"var(--coral)"}">
+          ${def>0?`−${def.toLocaleString()} deficit`:`+${Math.abs(def).toLocaleString()} surplus`}
+        </span>
+      </div>
+    </div>`;
+  }).join("") : `
+    <div class="empty">
+      <div class="icon">📊</div>
+      <div class="title">ยังไม่มีประวัติ</div>
+    </div>`;
+
+  document.getElementById("page-history").innerHTML = `
+  <div class="anim-up">
+    <div style="font-size:10px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px">14 วันที่ผ่านมา</div>
+    ${listHTML}
+  </div>`;
+}
+
+/* ── Settings drawer ────────────────────────────────────────────────────────*/
+function renderSettings() {
+  const t = tdee(), g = goal();
+  document.getElementById("settings-drawer").innerHTML = `
+  <div class="drawer">
+    <div style="font-size:10px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px">ระดับกิจกรรม</div>
+    ${ACTIVITIES.map(a=>`
+      <button class="act-btn ${a.val===activity?"active":""}" onclick="setActivity(${a.val})">
+        <span>${a.icon} ${a.label}</span>
+        <span style="font-weight:${a.val===activity?700:400};color:${a.val===activity?"var(--amber)":"var(--muted)"}">${Math.round(BMR*a.val).toLocaleString()} kcal</span>
+      </button>`).join("")}
+    <div class="mini-grid" style="margin-top:12px">
+      <div class="mini-card"><div class="mini-label">BMR</div><div class="mini-val" style="color:var(--body)">${BMR.toLocaleString()}</div></div>
+      <div class="mini-card"><div class="mini-label">TDEE</div><div class="mini-val" style="color:var(--sky)">${t.toLocaleString()}</div></div>
+      <div class="mini-card"><div class="mini-label">เป้า −20%</div><div class="mini-val" style="color:var(--teal)">${g.toLocaleString()}</div></div>
+    </div>
+  </div>`;
+}
+
+/* ── Actions ────────────────────────────────────────────────────────────────*/
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+
+function addEntry(name, cal) {
+  const kcal = parseInt(cal);
+  if(!name.trim()||!kcal||kcal<=0) return;
+  const entry = {
+    id: Date.now(), name: name.trim(), cal: kcal,
+    time: new Date().toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})
+  };
+  if(!appData[TODAY]) appData[TODAY] = {entries:[]};
+  appData[TODAY].entries.push(entry);
+  saveAll();
+}
+
+function addManual() {
+  const n = document.getElementById("inp-name")?.value || "";
+  const c = document.getElementById("inp-cal")?.value || "";
+  if(!n.trim()||!parseInt(c)) return;
+  addEntry(n, c);
+  renderToday();
+}
+
+function quickAdd(name, cal) {
+  addEntry(name, cal);
+  renderToday();
+}
+
+function quickAddGoToday(name, cal) {
+  addEntry(name, cal);
+  switchTab("today");
+}
+
+function removeEntry(id) {
+  if(!appData[TODAY]) return;
+  appData[TODAY].entries = appData[TODAY].entries.filter(e=>e.id!==id);
+  saveAll();
+  renderToday();
+}
+
+function toggleSettings() {
+  settingsOpen = !settingsOpen;
+  const drawer = document.getElementById("settings-drawer");
+  const btn    = document.getElementById("tdee-btn");
+  if(settingsOpen) {
+    drawer.style.display = "block";
+    renderSettings();
+    btn.style.background = "rgba(122,82,0,0.53)";
+    btn.style.borderColor = "var(--amber)";
+    btn.style.color = "var(--amber)";
+  } else {
+    drawer.style.display = "none";
+    btn.style.background = "var(--bg3)";
+    btn.style.borderColor = "var(--border)";
+    btn.style.color = "var(--body)";
+  }
+}
+
+function setActivity(val) {
+  activity = val;
+  if(settingsOpen) renderSettings();
+  renderAll();
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  ["today","menus","history"].forEach(t=>{
+    document.getElementById("page-"+t).style.display = t===tab?"block":"none";
+    document.getElementById("tab-"+t).className = "tab-btn" + (t===tab?" active":"");
+  });
+  if(tab==="today")   renderToday();
+  if(tab==="menus")   renderMenus();
+  if(tab==="history") renderHistory();
+  document.getElementById("content").scrollTop = 0;
+}
+
+/* ── My Menus CRUD ──────────────────────────────────────────────────────────*/
+function toggleEditMode() {
+  editMode = !editMode;
+  editingId = null;
+  newEmoji = "🍽️";
+  emojiPickerOpen = false;
+  renderMenus();
+  if(editMode) setTimeout(()=>document.getElementById("new-name")?.focus(),50);
+}
+
+function startEdit(id) {
+  const m = myMenus.find(x=>x.id===id);
+  if(!m) return;
+  editMode   = true;
+  editingId  = id;
+  newEmoji   = m.emoji;
+  emojiPickerOpen = false;
+  renderMenus();
+  setTimeout(()=>{
+    const ni = document.getElementById("new-name");
+    const ci = document.getElementById("new-cal");
+    if(ni) ni.value = m.name;
+    if(ci) ci.value = m.cal;
+    ni?.focus();
+  },50);
+}
+
+function saveMenu() {
+  const name = document.getElementById("new-name")?.value || "";
+  const cal  = parseInt(document.getElementById("new-cal")?.value || "0");
+  if(!name.trim()||!cal||cal<=0) return;
+  if(editingId) {
+    myMenus = myMenus.map(m=>m.id===editingId?{...m,name:name.trim(),cal,emoji:newEmoji}:m);
+  } else {
+    myMenus.push({id:"u"+Date.now(), name:name.trim(), cal, emoji:newEmoji});
+  }
+  saveMenus();
+  editMode = false; editingId = null; emojiPickerOpen = false;
+  renderMenus();
+}
+
+function deleteMenu(id) {
+  myMenus = myMenus.filter(m=>m.id!==id);
+  saveMenus();
+  renderMenus();
+}
+
+function toggleEmojiPicker(e) {
+  e.stopPropagation();
+  emojiPickerOpen = !emojiPickerOpen;
+  renderMenus();
+  // restore inputs
+  setTimeout(()=>{
+    const ni = document.getElementById("new-name");
+    const ci = document.getElementById("new-cal");
+    // values were in DOM before re-render
+  },0);
+}
+
+function pickEmoji(em) {
+  // save current input values before re-render
+  const nameVal = document.getElementById("new-name")?.value || "";
+  const calVal  = document.getElementById("new-cal")?.value  || "";
+  newEmoji = em;
+  emojiPickerOpen = false;
+  renderMenus();
+  setTimeout(()=>{
+    const ni = document.getElementById("new-name");
+    const ci = document.getElementById("new-cal");
+    if(ni) ni.value = nameVal;
+    if(ci) ci.value = calVal;
+  },0);
+}
+
+// close emoji picker on outside tap
+document.addEventListener("click", e=>{
+  if(emojiPickerOpen && !e.target.closest("#emoji-picker") && !e.target.closest("#emoji-trigger")) {
+    const nameVal = document.getElementById("new-name")?.value || "";
+    const calVal  = document.getElementById("new-cal")?.value  || "";
+    emojiPickerOpen = false;
+    renderMenus();
+    setTimeout(()=>{
+      const ni = document.getElementById("new-name");
+      const ci = document.getElementById("new-cal");
+      if(ni) ni.value = nameVal;
+      if(ci) ci.value = calVal;
+    },0);
+  }
+});
+
+function renderAll() {
+  if(currentTab==="today")   renderToday();
+  if(currentTab==="menus")   renderMenus();
+  if(currentTab==="history") renderHistory();
+}
+
+/* ── Boot ───────────────────────────────────────────────────────────────────*/
+renderToday();
+
+/* ── Service Worker ─────────────────────────────────────────────────────────*/
+if("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/Calorie-tracker/sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
